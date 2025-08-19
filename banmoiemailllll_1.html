@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo Email Ảo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Nền gradient động */
+        body {
+            background: linear-gradient(45deg, #1e3a8a, #7c3aed, #db2777, #22d3ee);
+            background-size: 400%;
+            animation: gradientAnimation 12s ease infinite;
+        }
+
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Hiệu ứng hover và transition */
+        .btn-hover {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn-hover:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Scrollbar tùy chỉnh */
+        #emailList::-webkit-scrollbar {
+            width: 10px;
+        }
+        #emailList::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 5px;
+        }
+        #emailList::-webkit-scrollbar-thumb {
+            background: #7c3aed;
+            border-radius: 5px;
+        }
+        #emailList::-webkit-scrollbar-thumb:hover {
+            background: #6d28d9;
+        }
+
+        /* Hiệu ứng fade-in cho email */
+        .email-item {
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Toast thông báo */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease, slideOut 0.3s ease 2.7s;
+        }
+        .toast-success { background: #10b981; }
+        .toast-error { background: #ef4444; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        /* Spinner loading */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #7c3aed;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center">
+    <div class="bg-white bg-opacity-95 backdrop-blur-xl p-8 rounded-2xl shadow-2xl w-full max-w-lg border border-purple-200">
+        <h1 class="text-4xl font-extrabold mb-8 text-center text-gray-900">Tạo Email Ảo Hàng Loạt</h1>
+        <div class="mb-6">
+            <label for="realEmail" class="block text-sm font-medium text-gray-700 mb-2">Nhập phần tên email</label>
+            <input type="text" id="realEmail" placeholder="toilakien" class="p-3 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+        </div>
+        <div class="mb-6">
+            <label for="emailCount" class="block text-sm font-medium text-gray-700 mb-2">Số lượng email ảo (3-1000)</label>
+            <input type="number" id="emailCount" min="3" max="1000" placeholder="3" class="p-3 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+        </div>
+        <button id="generateButton" onclick="generateEmails()" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-lg btn-hover">Tạo ngay</button>
+        <div id="loader" class="hidden loader"></div>
+        <div class="mt-6 flex justify-between items-center">
+            <p id="emailCountDisplay" class="text-sm font-medium text-gray-700">Số email ảo: 0</p>
+            <button id="copyAllButton" onclick="copyAllEmails()" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg btn-hover hidden">Sao chép toàn bộ</button>
+        </div>
+        <div id="emailList" class="mt-6 max-h-80 overflow-y-auto"></div>
+    </div>
+
+    <script>
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'success' ? 'toast-success' : 'toast-error'}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function generateEmails() {
+            const realEmail = document.getElementById('realEmail').value.trim();
+            const count = parseInt(document.getElementById('emailCount').value) || 0;
+            const emailList = document.getElementById('emailList');
+            const emailCountDisplay = document.getElementById('emailCountDisplay');
+            const copyAllButton = document.getElementById('copyAllButton');
+            const generateButton = document.getElementById('generateButton');
+            const loader = document.getElementById('loader');
+
+            // Hiển thị loader và vô hiệu hóa nút
+            generateButton.disabled = true;
+            generateButton.classList.add('opacity-50', 'cursor-not-allowed');
+            loader.classList.remove('hidden');
+            emailList.innerHTML = '';
+
+            // Kiểm tra phần tên email hợp lệ
+            const emailPartRegex = /^[a-zA-Z0-9._%+-]+$/;
+            if (!emailPartRegex.test(realEmail)) {
+                emailList.innerHTML = '<p class="text-red-500 text-sm">Vui lòng nhập phần tên email hợp lệ (chỉ chữ cái, số, dấu chấm, dấu gạch dưới, dấu cộng, dấu trừ)!</p>';
+                emailCountDisplay.textContent = 'Số email ảo: 0';
+                copyAllButton.classList.add('hidden');
+                loader.classList.add('hidden');
+                generateButton.disabled = false;
+                generateButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                return;
+            }
+
+            // Kiểm tra số lượng hợp lệ
+            if (count < 3 || count > 1000) {
+                emailList.innerHTML = '<p class="text-red-500 text-sm">Số lượng email ảo phải từ 3 đến 1000!</p>';
+                emailCountDisplay.textContent = 'Số email ảo: 0';
+                copyAllButton.classList.add('hidden');
+                loader.classList.add('hidden');
+                generateButton.disabled = false;
+                generateButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                return;
+            }
+
+            // Tạo danh sách email ảo (dùng setTimeout để mô phỏng loading)
+            setTimeout(() => {
+                const emails = generateVirtualEmails(realEmail, count);
+
+                // Hiển thị email
+                emails.forEach((email, index) => {
+                    const emailItem = document.createElement('div');
+                    emailItem.className = 'flex items-center justify-between mt-2 p-3 bg-gray-50 rounded-lg email-item';
+                    emailItem.style.animationDelay = `${index * 0.05}s`;
+                    emailItem.innerHTML = `
+                        <span class="text-sm text-gray-800">${email}</span>
+                        <button onclick="copyToClipboard('${email}')" class="bg-green-500 text-white px-3 py-1 rounded-lg btn-hover">Sao chép</button>
+                    `;
+                    emailList.appendChild(emailItem);
+                });
+
+                emailCountDisplay.textContent = `Số email ảo: ${emails.length}`;
+                copyAllButton.classList.remove('hidden');
+                loader.classList.add('hidden');
+                generateButton.disabled = false;
+                generateButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }, 500); // Delay nhẹ để hiển thị loader
+        }
+
+        function generateVirtualEmails(localPart, count) {
+            const emails = new Set();
+            const characters = 'abcdefghijklmnopqrstuvwxyz';
+
+            // Tạo email ảo với + và 5 ký tự ngẫu nhiên
+            while (emails.size < count) {
+                let randomPart = '';
+                for (let i = 0; i < 5; i++) {
+                    randomPart += characters[Math.floor(Math.random() * characters.length)];
+                }
+                emails.add(`${localPart}+${randomPart}@gmail.com`);
+            }
+
+            return Array.from(emails);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Đã sao chép: ' + text, 'success');
+            }).catch(err => {
+                console.error('Lỗi khi sao chép: ', err);
+                showToast('Lỗi khi sao chép, vui lòng thử lại!', 'error');
+            });
+        }
+
+        function copyAllEmails() {
+            const emailList = document.getElementById('emailList');
+            const emails = Array.from(emailList.getElementsByTagName('span')).map(span => span.textContent);
+            const textToCopy = emails.join('\n');
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showToast('Đã sao chép tất cả email!', 'success');
+            }).catch(err => {
+                console.error('Lỗi khi sao chép toàn bộ: ', err);
+                showToast('Lỗi khi sao chép toàn bộ, vui lòng thử lại!', 'error');
+            });
+        }
+    </script>
+</body>
+</html>
